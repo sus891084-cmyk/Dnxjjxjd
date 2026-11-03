@@ -1,0 +1,546 @@
+-- =========================================================================
+-- СИСТЕМА: ИНИЦИАЛИЗАЦИЯ И УДАЛЕНИЕ СТАРОГО МЕНЮ (ЕСЛИ ЕСТЬ)
+-- =========================================================================
+if game.CoreGui:FindFirstChild("VanThanhIOS_Gui") then
+    game.CoreGui.VanThanhIOS_Gui:Destroy()
+end
+if game.CoreGui:FindFirstChild("DuckCheatGui") then
+    game.CoreGui.DuckCheatGui:Destroy()
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+local CONFIG_FILE = "VanThanhIOS_AutoSave.json"
+
+-- =========================================================================
+-- СИСТЕМА АВТОСОХРАНЕНИЯ
+-- =========================================================================
+local config = {
+    Speed = 26,
+    Jump = 50,
+    AuraRadius = 50,
+    Antilag = false,
+    KillAura = false,
+    LocationTracking = false
+}
+
+local function saveConfig()
+    if not writefile then return end
+    pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode(config))
+    end)
+end
+
+local function loadConfig()
+    if not readfile or not isfile then return end
+    pcall(function()
+        if isfile(CONFIG_FILE) then
+            local data = HttpService:JSONDecode(readfile(CONFIG_FILE))
+            for k, v in pairs(data) do
+                if config[k] ~= nil then
+                    config[k] = v
+                end
+            end
+        end
+    end)
+end
+
+loadConfig()
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "VanThanhIOS_Gui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = game.CoreGui
+
+-- =========================================================================
+-- 0. ВСПЛЫВАЮЩЕЕ ОКНО БЛАГОДАРНОСТИ (НА 5 СЕКУНД)
+-- =========================================================================
+local PopupFrame = Instance.new("Frame", ScreenGui)
+PopupFrame.Size = UDim2.new(0, 300, 0, 80)
+PopupFrame.Position = UDim2.new(0.5, -150, 0.2, 0)
+PopupFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+PopupFrame.BackgroundTransparency = 0.1
+PopupFrame.BorderSizePixel = 0
+PopupFrame.ZIndex = 100
+
+local PopupCorner = Instance.new("UICorner", PopupFrame)
+PopupCorner.CornerRadius = UDim.new(0, 8)
+
+local PopupStroke = Instance.new("UIStroke", PopupFrame)
+PopupStroke.Color = Color3.fromRGB(0, 255, 120)
+PopupStroke.Thickness = 2
+
+local PopupLabel = Instance.new("TextLabel", PopupFrame)
+PopupLabel.Size = UDim2.new(1, 0, 1, 0)
+PopupLabel.BackgroundTransparency = 1
+PopupLabel.Text = "Cảm ơn anh Hiếu. Đẹp trai"
+PopupLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
+PopupLabel.Font = Enum.Font.SourceSansBold
+PopupLabel.TextSize = 20
+PopupLabel.ZIndex = 101
+
+-- Удаление всплывающего окна через 5 секунд
+task.delay(5, function()
+    if PopupFrame and PopupFrame.Parent then
+        PopupFrame:Destroy()
+    end
+end)
+
+-- =========================================================================
+-- 1. КНОПКА-ИКОНКА
+-- =========================================================================
+local ToggleBtn = Instance.new("TextButton", ScreenGui)
+ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleBtn.Text = "🌚"
+ToggleBtn.TextSize = 28
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+local ToggleCorner = Instance.new("UICorner", ToggleBtn)
+ToggleCorner.CornerRadius = UDim.new(0, 15)
+
+-- =========================================================================
+-- 2. ГЛАВНОЕ ОКНО
+-- =========================================================================
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 320, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Visible = false
+local MainCorner = Instance.new("UICorner", MainFrame)
+MainCorner.CornerRadius = UDim.new(0, 8)
+
+local TopBar = Instance.new("Frame", MainFrame)
+TopBar.Size = UDim2.new(1, 0, 0, 35)
+TopBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+TopBar.BorderSizePixel = 0
+local TopBarCorner = Instance.new("UICorner", TopBar)
+TopBarCorner.CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel", TopBar)
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Chức Năng"
+Title.TextColor3 = Color3.fromRGB(50, 150, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+
+local CloseBtn = Instance.new("TextButton", TopBar)
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 2)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.TextSize = 14
+local CloseCorner = Instance.new("UICorner", CloseBtn)
+CloseCorner.CornerRadius = UDim.new(0, 6)
+
+local ContentArea = Instance.new("Frame", MainFrame)
+ContentArea.Size = UDim2.new(1, -20, 1, -70)
+ContentArea.Position = UDim2.new(0, 10, 0, 45)
+ContentArea.BackgroundTransparency = 1
+ContentArea.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout", ContentArea)
+UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- =========================================================================
+-- 3. ЭЛЕМЕНТЫ УПРАВЛЕНИЯ
+-- =========================================================================
+local function createInputRow(labelText, defaultKey, layoutOrder)
+    local row = Instance.new("Frame", ContentArea)
+    row.Size = UDim2.new(1, 0, 0, 34)
+    row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    row.BorderSizePixel = 0
+    row.LayoutOrder = layoutOrder
+    local rowCorner = Instance.new("UICorner", row)
+    rowCorner.CornerRadius = UDim.new(0, 6)
+
+    local label = Instance.new("TextLabel", row)
+    label.Size = UDim2.new(0.6, 0, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = labelText
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local textBox = Instance.new("TextBox", row)
+    textBox.Size = UDim2.new(0.3, 0, 1, -10)
+    textBox.Position = UDim2.new(0.65, 0, 0, 5)
+    textBox.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.Font = Enum.Font.SourceSansBold
+    textBox.TextSize = 14
+    textBox.Text = tostring(config[defaultKey])
+    textBox.PlaceholderText = "Value"
+    local boxCorner = Instance.new("UICorner", textBox)
+    boxCorner.CornerRadius = UDim.new(0, 4)
+
+    return textBox, defaultKey
+end
+
+local SpeedBox, SpeedKey = createInputRow("Speed Hack", "Speed", 1)
+local JumpBox, JumpKey = createInputRow("Nhảy Cao", "Jump", 2)
+local AuraRadiusBox, AuraKey = createInputRow("Aura Radius", "AuraRadius", 3)
+
+local function applyStats()
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            local spd = tonumber(SpeedBox.Text) or 16
+            local jmp = tonumber(JumpBox.Text) or 50
+            hum.WalkSpeed = spd
+            pcall(function() hum.UseJumpPower = true end)
+            hum.JumpPower = jmp
+        end
+    end
+end
+
+SpeedBox.FocusLost:Connect(function()
+    config[SpeedKey] = tonumber(SpeedBox.Text) or 16
+    saveConfig()
+    applyStats()
+end)
+
+JumpBox.FocusLost:Connect(function()
+    config[JumpKey] = tonumber(JumpBox.Text) or 50
+    saveConfig()
+    applyStats()
+end)
+
+AuraRadiusBox.FocusLost:Connect(function()
+    config[AuraKey] = tonumber(AuraRadiusBox.Text) or 50
+    saveConfig()
+end)
+
+-- =========================================================================
+-- 4. КНОПКИ ФУНКЦИЙ
+-- =========================================================================
+local killAuraEnabled = false
+local trackEnabled = false
+local clearMarkers -- Forward declaration
+
+local function createMenuButton(text, configKey, layoutOrder, callback)
+    local btn = Instance.new("TextButton", ContentArea)
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.TextColor3 = Color3.fromRGB(220, 220, 220)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    btn.Text = text
+    btn.LayoutOrder = layoutOrder
+    btn.BorderSizePixel = 0
+    
+    local btnCorner = Instance.new("UICorner", btn)
+    btnCorner.CornerRadius = UDim.new(0, 6)
+
+    local isToggled = config[configKey] or false
+
+    local function updateVisuals()
+        if isToggled then
+            btn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        end
+    end
+
+    updateVisuals()
+    if callback then callback(isToggled) end
+
+    btn.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        config[configKey] = isToggled
+        updateVisuals()
+        saveConfig()
+        if callback then callback(isToggled) end
+    end)
+
+    return btn
+end
+
+createMenuButton("Antilag + FPS", "Antilag", 4, function(state)
+    if state then
+        pcall(function()
+            UserSettings():GetService("UserGameSettings").SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+            game:GetService("Lighting").GlobalShadows = false
+        end)
+    else
+        pcall(function()
+            UserSettings():GetService("UserGameSettings").SavedQualityLevel = Enum.SavedQualitySetting.Automatic
+            game:GetService("Lighting").GlobalShadows = true
+        end)
+    end
+end)
+
+createMenuButton("Kill Aura", "KillAura", 5, function(state)
+    killAuraEnabled = state
+end)
+
+createMenuButton("Location Tracking", "LocationTracking", 6, function(state)
+    trackEnabled = state
+    if not state and clearMarkers then clearMarkers() end
+end)
+
+-- =========================================================================
+-- 5. ЛОГИКА KILL AURA И МАРКЕРОВ
+-- =========================================================================
+local function attackTarget(charFolder, targetObj)
+    local char = charFolder:FindFirstChild(LocalPlayer.Name)
+    if not char then return end
+    
+    local weapon = char:FindFirstChildOfClass("Tool")
+    if not weapon then return end
+
+    local hum = targetObj:FindFirstChildOfClass("Humanoid")
+    local head = targetObj:FindFirstChild("Head")
+    
+    if hum and head and hum.Health > 0 then
+        local player = Players:GetPlayerFromCharacter(targetObj)
+        if player and player.Team == LocalPlayer.Team and not player.Neutral then return end
+
+        local WeaponsSystem = ReplicatedStorage:FindFirstChild("WeaponsSystem")
+        local Network = WeaponsSystem and WeaponsSystem:FindFirstChild("Network")
+        local WeaponHit = Network and Network:FindFirstChild("WeaponHit")
+        local WeaponFired = Network and Network:FindFirstChild("WeaponFired")
+        
+        local isMelee = not weapon:FindFirstChild("AmmoCapacity", true)
+
+        pcall(function()
+            if isMelee and WeaponFired then
+                WeaponFired:FireServer(weapon, {
+                    attackType = "Normal",
+                    comboIndex = 1,
+                    position = head.Position
+                })
+            elseif WeaponHit then
+                WeaponHit:FireServer(weapon, {
+                    p = head.Position,
+                    pid = 1,
+                    part = head,
+                    d = 1,
+                    maxDist = math.huge,
+                    h = hum,
+                    m = Enum.Material.Snow,
+                    n = Vector3.new(1, 0, 0),
+                    t = tick() % 1,
+                    sid = math.random(1, 10)
+                })
+            end
+        end)
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if killAuraEnabled then
+            local CharFolder = Workspace:FindFirstChild("Character")
+            local myChar = CharFolder and CharFolder:FindFirstChild(LocalPlayer.Name)
+            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            
+            if CharFolder and myRoot then
+                local maxDist = tonumber(AuraRadiusBox.Text) or 50
+                
+                for _, obj in pairs(CharFolder:GetChildren()) do
+                    if obj:IsA("Model") and obj ~= myChar then
+                        local hum = obj:FindFirstChildOfClass("Humanoid")
+                        local root = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Head")
+                        
+                        if hum and hum.Health > 0 and root then
+                            local dist = (root.Position - myRoot.Position).Magnitude
+                            if dist <= maxDist then
+                                attackTarget(CharFolder, obj)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- =========================================================================
+-- 6. LOCATION TRACKING (ЗЕЛЁНЫЕ МАРКЕРЫ)
+-- =========================================================================
+local markers = {}
+
+local function createMarker(character)
+    local head = character:FindFirstChild("Head")
+    if not head then return nil end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "EnemyMarkerHL"
+    highlight.FillColor = Color3.fromRGB(0, 255, 120)
+    highlight.FillTransparency = 0.75
+    highlight.OutlineColor = Color3.fromRGB(0, 255, 120)
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = character
+    highlight.Parent = character
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "EnemyMarkerBB"
+    billboard.Size = UDim2.new(0, 120, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Adornee = head
+    billboard.Parent = character
+
+    local distLabel = Instance.new("TextLabel")
+    distLabel.Size = UDim2.new(1, 0, 1, 0)
+    distLabel.BackgroundTransparency = 1
+    distLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
+    distLabel.Font = Enum.Font.SourceSansBold
+    distLabel.TextSize = 14
+    distLabel.Text = "0m"
+    distLabel.Parent = billboard
+
+    return { highlight = highlight, billboard = billboard, distLabel = distLabel }
+end
+
+clearMarkers = function()
+    for player, data in pairs(markers) do
+        pcall(function()
+            data.highlight:Destroy()
+            data.billboard:Destroy()
+        end)
+        markers[player] = nil
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not trackEnabled then return end
+
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local activePlayers = {}
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local char = player.Character
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local head = char:FindFirstChild("Head")
+
+            if hum and hum.Health > 0 and hrp and head then
+                activePlayers[player] = true
+                
+                if not markers[player] then
+                    local m = createMarker(char)
+                    if m then markers[player] = m end
+                else
+                    local m = markers[player]
+                    m.highlight.Adornee = char
+                    m.billboard.Adornee = head
+                    
+                    if myRoot then
+                        local dist = (hrp.Position - myRoot.Position).Magnitude
+                        m.distLabel.Text = math.floor(dist) .. "m"
+                    end
+                end
+            end
+        end
+    end
+
+    for player, data in pairs(markers) do
+        if not activePlayers[player] then
+            pcall(function()
+                data.highlight:Destroy()
+                data.billboard:Destroy()
+            end)
+            markers[player] = nil
+        end
+    end
+end)
+
+-- =========================================================================
+-- 7. НИЖНЯЯ ПАНЕЛЬ (ВРЕМЯ)
+-- =========================================================================
+local BottomBar = Instance.new("Frame", MainFrame)
+BottomBar.Size = UDim2.new(1, 0, 0, 25)
+BottomBar.Position = UDim2.new(0, 0, 1, -25)
+BottomBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+BottomBar.BorderSizePixel = 0
+local BottomBarCorner = Instance.new("UICorner", BottomBar)
+BottomBarCorner.CornerRadius = UDim.new(0, 8)
+
+local GameTimeLabel = Instance.new("TextLabel", BottomBar)
+GameTimeLabel.Size = UDim2.new(0, 100, 1, 0)
+GameTimeLabel.Position = UDim2.new(0, 10, 0, 0)
+GameTimeLabel.BackgroundTransparency = 1
+GameTimeLabel.Text = "00.00.00"
+GameTimeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+GameTimeLabel.Font = Enum.Font.SourceSansBold
+GameTimeLabel.TextSize = 12
+GameTimeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local VnTimeLabel = Instance.new("TextLabel", BottomBar)
+VnTimeLabel.Size = UDim2.new(0, 100, 1, 0)
+VnTimeLabel.Position = UDim2.new(0.35, 0, 0, 0)
+VnTimeLabel.BackgroundTransparency = 1
+VnTimeLabel.Text = "VN: --:--:--"
+VnTimeLabel.TextColor3 = Color3.fromRGB(0, 255, 120)
+VnTimeLabel.Font = Enum.Font.SourceSansBold
+VnTimeLabel.TextSize = 12
+VnTimeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local VersionLabel = Instance.new("TextLabel", BottomBar)
+VersionLabel.Size = UDim2.new(0, 100, 1, 0)
+VersionLabel.Position = UDim2.new(1, -110, 0, 0)
+VersionLabel.BackgroundTransparency = 1
+VersionLabel.Text = "v6.4.2"
+VersionLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+VersionLabel.Font = Enum.Font.SourceSansBold
+VersionLabel.TextSize = 11
+VersionLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+task.spawn(function()
+    local startTime = tick()
+    while ScreenGui.Parent do
+        local elapsed = math.floor(tick() - startTime)
+        local h = math.floor(elapsed / 3600)
+        local m = math.floor((elapsed % 3600) / 60)
+        local s = elapsed % 60
+        GameTimeLabel.Text = string.format("%02d:%02d:%02d", h, m, s)
+
+        local utcTime = os.time()
+        local vnTime = os.date("!*t", utcTime + 7 * 3600)
+        VnTimeLabel.Text = string.format("VN: %02d:%02d:%02d", vnTime.hour, vnTime.min, vnTime.sec)
+
+        task.wait(1)
+    end
+end)
+
+-- =========================================================================
+-- 8. СОБЫТИЯ И АВТОПРИМЕНЕНИЕ
+-- =========================================================================
+ToggleBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    if clearMarkers then clearMarkers() end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    applyStats()
+end)
+
+if LocalPlayer.Character then
+    applyStats()
+end
